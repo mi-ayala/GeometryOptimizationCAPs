@@ -1,5 +1,5 @@
 #### Energy for (5,5)-nanotube with pentagonal caps and N = 360 atoms using the harmonic potential.
-using NanotubesCAPs
+using GeometryOptimizationCAPs
 using IntervalArithmetic
 using CairoMakie
 using Statistics
@@ -33,7 +33,6 @@ sup(E)
 # reference_radius = mean(radii[171:190])
 # sup(radii[181:190][1])
 # common_decimal_places([sup.(radii[171:190]); inf.(radii[171:190])])
-
 
 
 

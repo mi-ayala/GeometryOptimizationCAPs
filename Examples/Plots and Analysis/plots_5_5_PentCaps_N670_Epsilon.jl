@@ -1,5 +1,5 @@
 #### Plots for (5,5)-nanotube with pentagonal caps and N = 670 atoms using the epsilon potential.
-using NanotubesCAPs
+using GeometryOptimizationCAPs
 using IntervalArithmetic
 using CairoMakie
 using JLD2
@@ -150,4 +150,3 @@ end
 
 whisker = 0.0
 radii_plot_signed_deviation(x, 1:61, reference_radius, whisker; output_path="signed_difference_radius_5-5_PentCaps_N670_Epsilon_bond144.pdf", scale_tol=1e-12)
-

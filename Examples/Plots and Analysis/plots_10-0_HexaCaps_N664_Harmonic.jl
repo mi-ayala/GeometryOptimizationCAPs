@@ -1,5 +1,5 @@
 #### Energy for (10,0)-nanotube with hexagonal caps and N = 370 atoms using the harmonic potential.
-using NanotubesCAPs
+using GeometryOptimizationCAPs
 using IntervalArithmetic
 using CairoMakie
 using JLD2

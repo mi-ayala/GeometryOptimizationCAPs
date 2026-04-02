@@ -183,16 +183,27 @@ function Tersoff(x_input, p)
 
 end
 
-function smooth_cutoff(r, R, D)
 
-
-    if R - D <= r
-        return 0.5 * (1 - sin(π * (r - R) / (2 * D)))
+@inline function smooth_cutoff(r, R, D)
+    T = typeof(r)
+    if r >= R - D
+        return (one(T)/2) * (one(T) - sin(T(π) * (r - R) / (2D)))
     else
-        return 1.0
+        return one(T)
     end
-
 end
+
+
+# function smooth_cutoff(r, R, D)
+
+
+#     if R - D <= r
+#         return 0.5 * (1 - sin(π * (r - R) / (2 * D)))
+#     else
+#         return 1.0
+#     end
+
+# end
 
 function Energy_Grad_Tersoff(x, parameters, connectivity)
 

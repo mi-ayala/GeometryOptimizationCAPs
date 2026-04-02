@@ -1,12 +1,12 @@
-module NanotubesCAPs
+module GeometryOptimizationCAPs
 
-using LinearAlgebra, ForwardDiff, Statistics, Distances
+using LinearAlgebra, ForwardDiff, Statistics, Distances, Random
 
 using LineSearches, Optim, JLD2
 
 using UnPack, Parameters, Printf, LaTeXStrings, CairoMakie
 
-using IntervalArithmetic, RadiiPolynomial
+using IntervalArithmetic, RadiiPolynomial, StaticArrays
 
 include("connectivities.jl")
 include("harmonic_functions.jl")
@@ -14,6 +14,7 @@ include("tersoff_functions.jl")
 include("epsilon_functions.jl")
 include("proof_functions.jl")
 include("radii_bonds_angles_functions.jl")
+include("lattice_functions.jl")
 
 @with_kw struct Tersoff_updated_parameters{R}
     a::R = 1393.6
@@ -59,7 +60,12 @@ export newton_method, find_maximum_r_star, get_proof
 export center_nanotube_armchair, center_nanotube_zigzag, get_ring_indices, get_radii,
     radii_plot, sort_armchair_bonds, common_decimal_places
 
+### Exporting Lattice Functions
+export cubic_points, pts_to_mat, postprocess!, sc_positions, bcc_positions, fcc_positions,
+    e_LJ, g_LJ!, g_LJ, h_LJ!, h_LJ, extended_Grad_LJ, extended_Hess_LJ,
+    nn_rank_plot, coordination_plot
+
 ### Exporting Tersoff parameters
 export Tersoff_parameters, Tersoff_updated_parameters
 
-end # module NanotubesCAPs
+end # module GeometryOptimizationCAPs

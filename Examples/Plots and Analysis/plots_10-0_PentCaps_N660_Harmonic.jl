@@ -1,5 +1,5 @@
 #### Plots for (10,0)-nanotube with pentagonal caps and N = 660 atoms using the harmonic potential. 
-using NanotubesCAPs
+using GeometryOptimizationCAPs
 using IntervalArithmetic
 using CairoMakie
 using JLD2

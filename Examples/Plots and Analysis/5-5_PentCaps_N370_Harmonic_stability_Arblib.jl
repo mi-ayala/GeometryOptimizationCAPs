@@ -1,14 +1,13 @@
-#### Plots for (5,5)-nanotube with pentagonal caps and N = 370 atoms using the harmonic potential.
+#### Stability proof using Julia and Arblib 
 using GeometryOptimizationCAPs
 using IntervalArithmetic
 using Statistics
-using CairoMakie
 using JLD2
-using ForwardDiff
 
 using LinearAlgebra
+using Arblib
 
-using UnPack, Printf, LaTeXStrings, CairoMakie
+using UnPack
 
 ### Load the data
 data = load("data/5-5_PentCaps_N370_Harmonic.jld2")
@@ -400,13 +399,42 @@ I1x = [-x[:, 2]; x[:, 1]; zeros(type, N)]
 I2x = [zeros(type, N); -x[:, 3]; x[:, 2]]
 I3x = [x[:, 3]; zeros(type, N); -x[:, 1]]
 
-
 B = DF_int(x) + T1 * transpose(T1) + T2 * transpose(T2) + T3 * transpose(T3) + I1x * transpose(I1x) + I2x * transpose(I2x) + I3x * transpose(I3x)
 
+function is_spd(A::ArbMatrix; step::Int=10)
+    n, m = size(A)
+    n == m || error("A must be square, got $(n)×$(m).")
 
-#  save("B_matrix.jld2", "B_mid", mid.(B), "r", radius.(B) )
+    det_prev = Arb(1)
 
-# using MAT
-# matwrite("interval_data.mat", Dict("mid" => mid.(B), "rad" => radius.(B)))
+    for k in 1:n
+        B = A[1:k, 1:k]
+        e = ArbMatrix(k, 1); e .= Arb(0)
+        e[k,1] = Arb(1)
 
-### The condition of validating the positivity of all leading principal minors of the Hessian is checked in MATLAB using the interval arithmetic library INTLAB, which provides an efficient implementation for computing the inverse of interval matrices. This is particularly important in our case, as the matrices involved are of considerable size. Julia-based alternatives exist as well, but INTLAB is currently more efficient for this task. See 5-5_PentCaps_N370_Harmonic_stability_Arblib.jl for an implementation using the Arb library in Julia.
+        x = B \ e
+        invdiag = x[k,1]
+        ok = Arblib.ispositive(invdiag)
+
+        if (k == 1) || (k % step == 0) || !ok || (k == n)
+            println("k = $k / $n  (left: $(n-k))   invdiag>0?  $ok")
+        end
+        ok || return false
+
+        det_k = det_prev / invdiag
+        okdet = Arblib.ispositive(det_k)
+        if (k == 1) || (k % step == 0) || !okdet || (k == n)
+            println("            det_k>0?      $okdet")
+        end
+        okdet || return false
+
+        det_prev = det_k
+    end
+
+    return true
+end
+
+is_positive = is_spd(ArbMatrix(B))
+println("Is the Hessian positive definite (SPD)? ", is_positive)
+
+

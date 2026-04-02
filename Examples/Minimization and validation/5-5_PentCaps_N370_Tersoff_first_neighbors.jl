@@ -1,4 +1,4 @@
-using NanotubesCAPs
+using GeometryOptimizationCAPs
 
 using LineSearches
 using ForwardDiff
@@ -7,6 +7,8 @@ using Optim
 using IntervalArithmetic
 
 using JLD2
+
+### A proof of the (5,5)-nanotube with pentagonal caps and N = 370 atoms using the Tersoff potential. We minimize the energy and validate the simulation. All the other examples follow the same implementation structure.
 
 
 ### We start by minimizing the harmonic energy. Before using Tersoff potential.
@@ -38,26 +40,35 @@ res = Optim.optimize(e, center_nanotube_armchair(x_newton[7:end]), method=algo; 
 x_BFGS = vec(reshape(Optim.minimizer(res), :, 1))
 x_BFGS = center_nanotube_armchair(x_BFGS)
 
+
 F = x -> extended_Grad_Tersoff(x, x_BFGS, p, connectivity)
 DF = x -> extended_Hess_Tersoff(x, x_BFGS, p, connectivity)
 x_newton = newton_method(x -> (F(x), DF(x)), [zeros(6); reshape(x_BFGS, :, 1)]; tol=1.0e-12, maxiter=10)[1]
 
 x_newton = [zeros(6); reshape(center_nanotube_armchair(x_newton[7:end]), :, 1)]
+
+
+### Validation step using interval arithmetic.
+F_int = x -> extended_Grad_Tersoff(x, interval.(x_newton[7:end]), p, connectivity)
+DF_int = x -> extended_Hess_Tersoff(x, interval.(x_newton[7:end]), p, connectivity)
+
+r = get_proof(x_newton, F_int, DF_int, 9.9212e-8)
+
+# ### Save the data 
+# save("data/5-5_PentCaps_N370_Tersoff.jld2", "x_newton", x_newton, "r", r)
+
+
+### The data is saved to be loaded and analyzed in the file `plots_5-5_PentCaps_N370_Tersoff.jl`, where we generate plots and examine the results.
+
+
+### The following part check that given the originla parameters for the cutoff of the Tersoff potential, every otom iteract with only its first neighbors.
+
+
 x_tube = reshape(x_newton[7:end], :, 3)
 x₀r_interval = interval.(x_tube, 9.9212e-8; format=:midpoint) ### This is radius from the proof
 
-
-
-"""
-    smooth_cutoff(r::Interval, R, D) -> Symbol
-Evaluates the smooth cutoff function regions for an interval distance r.
-- :one    — r is entirely in the region r < R - D
-- :zero   — r is entirely in the region r > R + D
-- :middle — r is entirely in the smooth transition region [R - D, R + D]
-- :mixed  — r overlaps more than one region
-"""
 function smooth_cutoff3(r::Interval, R::Real, D::Real)
-    lo = R - D         
+    lo = R - D
     hi = R + D
 
     r_lo, r_hi = inf(r), sup(r)
@@ -76,13 +87,13 @@ end
 function pairwise_distances_and_cutoff(X::AbstractMatrix, R, D)
     @assert size(X, 2) == 3 "X must be N×3"
     N = size(X, 1)
-  
+
     Tcoord = eltype(X)
     Tdiff = typeof(zero(Tcoord) - zero(Tcoord))
     Tdist = typeof(sqrt(zero(Tdiff)))
 
     if Tcoord <: Interval
-      
+
         Dmat = Matrix{Tdist}(undef, N, N)
         Cmat = Matrix{Symbol}(undef, N, N)
 
@@ -93,7 +104,7 @@ function pairwise_distances_and_cutoff(X::AbstractMatrix, R, D)
                 dy = xi2 - X[j, 2]
                 dz = xi3 - X[j, 3]
 
-                r = sqrt(dx*dx + dy*dy + dz*dz)
+                r = sqrt(dx * dx + dy * dy + dz * dz)
 
                 Dmat[i, j] = r
                 Dmat[j, i] = r
@@ -111,7 +122,7 @@ function pairwise_distances_and_cutoff(X::AbstractMatrix, R, D)
 
         return Dmat, Cmat
     else
-       
+
         Dmat = Matrix{Tdist}(undef, N, N)
 
         cutoff_example = smooth_cutoff3(zero(Tdist), R, D)
@@ -125,12 +136,12 @@ function pairwise_distances_and_cutoff(X::AbstractMatrix, R, D)
                 dy = xi2 - X[j, 2]
                 dz = xi3 - X[j, 3]
 
-                r = sqrt(dx*dx + dy*dy + dz*dz)
+                r = sqrt(dx * dx + dy * dy + dz * dz)
 
                 Dmat[i, j] = r
                 Dmat[j, i] = r
 
-                c = smooth_cutoff3(r, R, D)   
+                c = smooth_cutoff3(r, R, D)
                 Cmat[i, j] = c
                 Cmat[j, i] = c
             end
@@ -145,26 +156,7 @@ function pairwise_distances_and_cutoff(X::AbstractMatrix, R, D)
     end
 end
 
-
-
-"""
-    check_three_neighbors(C; expected=3, tol=1e-3)
-
-If `C` is numeric:
-    - row_sums[i] = sum of row i
-    - bad_idx = { i : |row_sums[i] - expected| > tol }
-
-If `C` is a Symbol matrix (from interval cutoff):
-    - counts_one[i] = number of entries with tag `:one` in row i (excluding diagonal)
-    - bad_idx = { i : counts_one[i] ≠ expected }
-
-Returns:
-    bad_idx, row_info
-
-where
-    row_info = row_sums (numeric case) or counts_one (tag case).
-"""
-function check_three_neighbors(C::AbstractMatrix; expected::Int = 3, tol::Real = 1e-3)
+function check_three_neighbors(C::AbstractMatrix; expected::Int=3, tol::Real=1e-3)
     T = eltype(C)
 
     if T == Symbol
@@ -191,14 +183,14 @@ function check_three_neighbors(C::AbstractMatrix; expected::Int = 3, tol::Real =
 
         return bad_idx, counts_one
     else
-        # Numeric logic (float, BigFloat, etc.)
-        row_sums = vec(sum(C, dims = 2))
+
+        row_sums = vec(sum(C, dims=2))
         Tsum = eltype(row_sums)
         expected_T = convert(Tsum, expected)
-        tol_T      = convert(Tsum, tol)
+        tol_T = convert(Tsum, tol)
 
         bad_idx = findall(i -> abs(row_sums[i] - expected_T) > tol_T,
-                          eachindex(row_sums))
+            eachindex(row_sums))
 
         return bad_idx, row_sums
     end
@@ -211,3 +203,4 @@ D = 0.15
 ### An empty bad_indx means that all atoms in the candidate have exactly three interacting neighbors.
 Dmat, Cmat = pairwise_distances_and_cutoff(x₀r_interval, R, D)
 bad_idx, row_sums = check_three_neighbors(Cmat; expected=3)
+

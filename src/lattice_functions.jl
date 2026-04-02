@@ -22,7 +22,6 @@ function postprocess!(X::AbstractMatrix{<:Real}; center::Bool=true, jitter::Real
     return X
 end
 
-
 """
     sc_positions(n, d; center=true, jitter=0.0, rng=Random.GLOBAL_RNG)
 
@@ -67,10 +66,8 @@ function fcc_positions(n::Integer, d::Real; center::Bool=true, jitter::Real=0.0,
     postprocess!(X; center, jitter, rng)
 end
 
-
-### LJ Functions. Energy, gradient and hesssian
-function e(u, p)
-
+### LJ Functions. Energy, gradient and hessian
+function e_LJ(u, p)
     σ, ϵ, α, λ, N = p
 
     u = transpose(reshape(u, :, 3))
@@ -78,18 +75,12 @@ function e(u, p)
     r = zeros(eltype(u[1]), N, N)
     ener = zero(eltype(u[1]))
 
-    ### Computing the distances and forces. Here we are doing two times the computations.
     pairwise!(r, Euclidean(), u, dims=2)
 
-    ### The main loop
     @inbounds for i in 1:(N-1)
-
         for j in (i+1):N
-
             ener += 4 * ϵ * ((σ / r[i, j])^α - (σ / r[i, j])^λ)
-
         end
-
     end
 
     return ener / N
@@ -97,7 +88,7 @@ end
 
 @inline _T(::Type{T}, x) where {T} = oftype(zero(T), x)
 
-
+### -grad(Energy) for the Lennard-Jones potential
 function g_LJ!(du, u, p, t)
     σ, ϵ, α, λ, N = p
     N = Int(N)
@@ -124,16 +115,13 @@ function g_LJ!(du, u, p, t)
     Y = y .- y'
     Z = z .- z'
 
-    # r^2
     r2 = @. X * X + Y * Y + Z * Z
-
 
     @inbounds for i in 1:N
         r2[i, i] = one(T)
     end
 
     r = sqrt.(r2)
-
 
     four = interval(4)
     invN = inv(interval(N))
@@ -159,7 +147,7 @@ end
 
 g_LJ(u, p) = (du = similar(u); fill!(du, 0); g_LJ!(du, u, p, 1); du)
 
-
+### Hessian of -Energy for the Lennard-Jones potential
 function h_LJ!(Jac, u, p, t)
     σ, ϵ, α, λ, N = p
     N = Int(N)
@@ -175,11 +163,9 @@ function h_LJ!(Jac, u, p, t)
     @views y = u[N+1:2N]
     @views z = u[2N+1:3N]
 
-
     X = x .- x'
     Y = y .- y'
     Z = z .- z'
-
 
     r2 = @. X * X + Y * Y + Z * Z
     @inbounds for i in 1:N
@@ -189,7 +175,6 @@ function h_LJ!(Jac, u, p, t)
 
     σ6 = σ^interval(6)
     c = interval(4) * ϵ * σ6
-
 
     f = @. c * (λi * inv(r^λp2) - (αi * σ6) * inv(r^αp2))
     a = @. c * (
@@ -201,7 +186,6 @@ function h_LJ!(Jac, u, p, t)
         f[i, i] = zero(T)
         a[i, i] = zero(T)
     end
-
 
     Xa = X .* a
     Ya = Y .* a
@@ -263,17 +247,13 @@ h_LJ(u, p) = begin
     Jac
 end
 
-
-
-###  Extended functions for computer-assisted proofs
-function extended_Grad(x_input, x_fix, p, gradE)
-
+### Extended functions for computer-assisted proofs
+function extended_Grad_LJ(x_input, x_fix, p, gradE)
     x_fix = reshape(x_fix, :, 1)
     x_input = reshape(x_input, :, 1)
     T = eltype(x_input)
 
     N = Int(size(x_fix, 1) ÷ 3)
-
 
     lambda1 = x_input[1]
     lambda2 = x_input[2]
@@ -284,11 +264,9 @@ function extended_Grad(x_input, x_fix, p, gradE)
 
     x = reshape(x_input[7:end], :, 1)
 
-    # vector field 
     Fx = gradE(reshape(x, :, 3))
     Fx = reshape(Fx, 3N, 1)
 
-    #  Translation generators 
     o = one(T)
     z = zero(T)
 
@@ -296,12 +274,10 @@ function extended_Grad(x_input, x_fix, p, gradE)
     T2 = vcat(fill(z, N, 1), fill(o, N, 1), fill(z, N, 1))
     T3 = vcat(fill(z, 2N, 1), fill(o, N, 1))
 
-
     T1x = (hcat(fill(o, 1, N), fill(z, 1, 2N)) * x)
     T2x = (hcat(fill(z, 1, N), fill(o, 1, N), fill(z, 1, N)) * x)
     T3x = (hcat(fill(z, 1, 2N), fill(o, 1, N)) * x)
 
-    # Rotation generators 
     I1xfix = vcat(-x_fix[N+1:2N, :], x_fix[1:N, :], fill(z, N, size(x_fix, 2)))
     I2xfix = vcat(fill(z, N, size(x_fix, 2)), -x_fix[2N+1:end, :], x_fix[N+1:2N, :])
     I3xfix = vcat(x_fix[2N+1:end, :], fill(z, N, size(x_fix, 2)), -x_fix[1:N, :])
@@ -310,12 +286,10 @@ function extended_Grad(x_input, x_fix, p, gradE)
     I2x = vcat(fill(z, N, size(x_fix, 2)), -x[2N+1:end, :], x[N+1:2N, :])
     I3x = vcat(x[2N+1:end, :], fill(z, N, size(x_fix, 2)), -x[1:N, :])
 
-
     Fx_ext = Fx +
              mu1 * T1 + mu2 * T2 + mu3 * T3 +
              lambda1 * I1x + lambda2 * I2x + lambda3 * I3x
 
-    # balancing equations 
     bal1 = (transpose(x) * I1xfix)
     bal2 = (transpose(x) * I2xfix)
     bal3 = (transpose(x) * I3xfix)
@@ -323,8 +297,7 @@ function extended_Grad(x_input, x_fix, p, gradE)
     return vcat(bal1, bal2, bal3, T1x, T2x, T3x, Fx_ext)
 end
 
-function extended_Hess(x_input, x_fix, p, gradE, hessE)
-
+function extended_Hess_LJ(x_input, x_fix, p, gradE, hessE)
     x_fix = reshape(x_fix, :, 1)
     x_input = reshape(x_input, :, 1)
     T = eltype(x_input)
@@ -343,11 +316,9 @@ function extended_Hess(x_input, x_fix, p, gradE, hessE)
     o = one(T)
     z = zero(T)
 
-    # --- vector field ---
     Fx = gradE(reshape(x, :, 3))
     Fx = reshape(Fx, 3N, 1)
 
-    # --- Translation generators ---
     T1 = vcat(fill(o, N, 1), fill(z, 2N, 1))
     T2 = vcat(fill(z, N, 1), fill(o, N, 1), fill(z, N, 1))
     T3 = vcat(fill(z, 2N, 1), fill(o, N, 1))
@@ -356,7 +327,6 @@ function extended_Hess(x_input, x_fix, p, gradE, hessE)
     T2x = (hcat(fill(z, 1, N), fill(o, 1, N), fill(z, 1, N)) * x)
     T3x = (hcat(fill(z, 1, 2N), fill(o, 1, N)) * x)
 
-    # --- Rotation generators ---
     I1xfix = vcat(-x_fix[N+1:2N, :], x_fix[1:N, :], fill(z, N, size(x_fix, 2)))
     I2xfix = vcat(fill(z, N, size(x_fix, 2)), -x_fix[2N+1:end, :], x_fix[N+1:2N, :])
     I3xfix = vcat(x_fix[2N+1:end, :], fill(z, N, size(x_fix, 2)), -x_fix[1:N, :])
@@ -373,19 +343,16 @@ function extended_Hess(x_input, x_fix, p, gradE, hessE)
 
     dFx = hessE(reshape(x, :, 3))
 
-
     dFx = hcat(fill(z, 3N, 6), dFx)
     dFx = vcat(fill(z, 6, 3N + 6), dFx)
 
-
     IN = Diagonal(fill(o, N))
-
     ZNN = fill(z, N, N)
 
     Adjusts = [
-        ZNN (-lambda1)*IN (lambda3)*IN
-        (lambda1)*IN ZNN (-lambda2)*IN
-        (-lambda3)*IN (lambda2)*IN ZNN
+        ZNN (-lambda1) * IN (lambda3) * IN
+        (lambda1) * IN ZNN (-lambda2) * IN
+        (-lambda3) * IN (lambda2) * IN ZNN
     ]
 
     Adjusts = hcat(I1x, I2x, I3x, T1, T2, T3, Adjusts)
@@ -404,20 +371,6 @@ function extended_Hess(x_input, x_fix, p, gradE, hessE)
 end
 
 ### Coordination plot
-"""
-    nn_rank_plot(x; k=26, cube=(0.0,1.0, 0.0,1.0, 0.0,1.0), max_lines=50)
-
-For each particle INSIDE the axis-aligned unit cube, compute distances to the
-first `k` nearest neighbors (excluding itself) and plot neighbor rank (1..k) vs distance.
-
-- `x`         :: N×3 matrix of particle coordinates (columns = x,y,z)
-- `k`         :: number of neighbors to consider (default 26)
-- `cube`      :: (xlo,xhi,ylo,yhi,zlo,zhi) bounds (default [0,1]^3)
-- `max_lines` :: max number of individual curves drawn (to avoid clutter)
-
-Returns `(D, inside)` where `D` is a k×M matrix of distances (each column = one particle),
-and `inside` are the indices of the particles used.
-"""
 function nn_rank_plot(x::AbstractMatrix;
     k::Int=26,
     cube::NTuple{6,Float64}=(-1.0, 1.0, -1.0, 1.0, -1.0, 1.0),
@@ -428,60 +381,48 @@ function nn_rank_plot(x::AbstractMatrix;
     N = size(x, 1)
     xlo, xhi, ylo, yhi, zlo, zhi = cube
 
-    # indices of points strictly inside the cube
     inside = [i for i in 1:N if (xlo <= x[i, 1] <= xhi) &&
               (ylo <= x[i, 2] <= yhi) &&
               (zlo <= x[i, 3] <= zhi)]
     isempty(inside) && error("No particles found inside the cube $(cube).")
 
-    # KDTree expects points as columns (3×N)
-    pts = Matrix(x')                      # 3×N
-    tree = KDTree(pts, Euclidean())
-
     keff = min(k, N - 1)
     M = length(inside)
     D = Matrix{Float64}(undef, keff, M)
 
-    # For each selected particle, query k+1 nn (self included), drop self
+    dist = pairwise(Euclidean(), x, dims=1)
     for (j, i) in enumerate(inside)
-        idxs, dists = knn(tree, pts[:, i], keff + 1, true)
-        if idxs[1] == i
-            D[:, j] = dists[2:end]
-        else
-            kept = [d for (idx, d) in zip(idxs, dists) if idx != i]
-            @assert length(kept) >= keff "Not enough neighbors for point $i"
-            D[:, j] = kept[1:keff]
-        end
+        row = sort(view(dist, i, :))
+        D[:, j] = collect(row[2:(keff + 1)])
     end
 
-    # Plot: gray lines + median blue
-    r = 1:keff
-    plt = Plots.plot(r, D[:, 1]; lw=0.8, alpha=0.35, color=:gray,
-        xlabel="neighbor ranking", ylabel="distance",
+    fig = Figure(size=(1200, 800), backgroundcolor=:white)
+    ax = Axis(
+        fig[1, 1],
+        xlabel="neighbor ranking",
+        ylabel="distance",
         title="Nearest-neighbor distances for particles in unit cube",
-        legend=false)
+    )
 
-    for j in 2:min(M, max_lines)
-        Plots.scatter!(plt, r, D[:, j]; lw=0.8, alpha=0.35, color=:gray)
+    r = 1:keff
+    nlines = min(M, max_lines)
+    for j in 1:nlines
+        lines!(ax, r, D[:, j], color=(:gray, 0.35), linewidth=1)
+        scatter!(ax, r, D[:, j], color=(:gray, 0.35), markersize=6)
     end
 
     med = vec(mapslices(median, D; dims=2))
-    Plots.plot!(plt, r, med; lw=3, color=:blue)
+    lines!(ax, r, med, color=:blue, linewidth=3)
 
-    # save if requested
     if savepath !== nothing
-        ext = splitext(savepath)[2]
-        if isempty(ext)
-            savepath *= ".png"
-        end
-        savefig(plt, savepath)
-        @info "Plot saved to $savepath"
+        path = splitext(savepath)[2] == "" ? string(savepath, ".png") : savepath
+        save(path, fig)
+        @info "Plot saved to $path"
     end
 
-    display(plt)
+    display(fig)
     return D, inside
 end
-
 
 """
     coordination_plot(X, center_idx, nneigh;
@@ -494,8 +435,7 @@ plots the distances (as intervals) from particle `center_idx` to its
 
 - x-axis: neighbor index 1,2,…,nneigh (sorted by distance)
 - y-axis: distance to the chosen particle (in Å, or your units)
-
-The style is similar to `radii_plot`.
+.
 """
 function coordination_plot(
     X::AbstractMatrix,
@@ -504,37 +444,33 @@ function coordination_plot(
     whisker::Real=20,
     output_path::AbstractString="coordination_plot.pdf"
 )
-
-
     coords =
-        if size(X, 1) == 3 && size(X, 2) ≥ 1
-            permutedims(X)          # 3×N -> N×3
+        if size(X, 1) == 3 && size(X, 2) >= 1
+            permutedims(X)
         elseif size(X, 2) == 3
-            X                       # already N×3
+            X
         else
             error("X must be 3×N or N×3 (interval-valued coordinates).")
         end
 
     N = size(coords, 1)
-    @assert 1 ≤ center_idx ≤ N "center_idx out of bounds"
-    @assert nneigh ≥ 1 "nneigh must be ≥ 1"
+    @assert 1 <= center_idx <= N "center_idx out of bounds"
+    @assert nneigh >= 1 "nneigh must be >= 1"
     nneigh = min(nneigh, N - 1)
 
-
     colors = [
-        "#0072B2",  # deep blue
-        "#56B4E9",  # sky blue
-        "#009E73",  # bluish green
-        "#CC79A7",  # muted purple
-        "#7570B3",  # soft purple
-        "#E69F00",  # gold/orange
-        "#D55E00",  # orange-red
-        "#E1E171",  # softened yellow
-        "#8B008B",  # dark magenta
-        "#A0522D",  # warm brown
+        "#0072B2",
+        "#56B4E9",
+        "#009E73",
+        "#CC79A7",
+        "#7570B3",
+        "#E69F00",
+        "#D55E00",
+        "#E1E171",
+        "#8B008B",
+        "#A0522D",
     ]
 
-    # --- Distances from center particle ---------------
     center = coords[center_idx, :]
 
     dists = [
@@ -547,14 +483,9 @@ function coordination_plot(
     neighbor_ids = collect(1:N)
     deleteat!(neighbor_ids, findfirst(==(center_idx), neighbor_ids))
 
-
     sorted_neighbors = sort(neighbor_ids; by=j -> mid(dists[j]))
     selected = sorted_neighbors[1:nneigh]
     selected_dists = dists[selected]
-
-
-
-
 
     fig = Figure(
         size=(2000, 700),
@@ -575,7 +506,6 @@ function coordination_plot(
         rightspinevisible=true,
         xgridvisible=false,
         ygridvisible=false,
-        # ytickformat=ys -> [@sprintf("%.10f", y) for y in ys],
         xtickalign=1,
         ytickalign=1,
         yticksmirrored=true,
@@ -586,7 +516,6 @@ function coordination_plot(
         xtickwidth=4,
         ytickwidth=4,
     )
-
 
     for (k, d) in enumerate(selected_dists)
         m = mid(d)
@@ -613,4 +542,3 @@ function coordination_plot(
     save(output_path, fig)
     return fig
 end
-

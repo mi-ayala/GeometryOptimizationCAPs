@@ -1,4 +1,4 @@
-using NanotubesCAPs
+using GeometryOptimizationCAPs
 
 using LineSearches
 using ForwardDiff

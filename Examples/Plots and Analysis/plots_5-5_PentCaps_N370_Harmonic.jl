@@ -1,5 +1,5 @@
 #### Plots for (5,5)-nanotube with pentagonal caps and N = 370 atoms using the harmonic potential.
-using NanotubesCAPs
+using GeometryOptimizationCAPs
 using IntervalArithmetic
 using CairoMakie
 using Statistics
@@ -167,7 +167,6 @@ radii_plot_signed_deviation(
     output_path="signed_difference_radius_5-5_PentCaps_N370_Harmonic.pdf",
     scale_tol=1e-9
 )
-
 
 
 

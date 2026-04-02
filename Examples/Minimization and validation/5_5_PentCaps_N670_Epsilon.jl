@@ -1,4 +1,4 @@
-using NanotubesCAPs
+using GeometryOptimizationCAPs
 using IntervalArithmetic
 using Statistics
 using CairoMakie
@@ -11,7 +11,7 @@ using Optim
 
 using UnPack, Printf, LaTeXStrings, CairoMakie
 
-### A proof of the (5,5)-nanotube with pentagonal caps and N = 670 atoms using the epsilon potential. with epsilon equal to 1e-5. We minimize the energy and validate the simulation. All the other examples follow the same implementation structure.
+### A proof of the (5,5)-nanotube with pentagonal caps and N = 670 atoms using the epsilon potential. with epsilon equal to 1e-5. We minimize the energy and validate the simulation. 
 
 ### For this we use quadruple precision.
 setprecision(BigFloat, 128)

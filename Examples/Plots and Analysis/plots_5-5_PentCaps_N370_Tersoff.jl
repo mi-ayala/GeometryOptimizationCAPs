@@ -1,5 +1,5 @@
 #### Plots for (5,5)-nanotube with pentagonal caps and N = 370 atoms using the Tersoff potential.
-using NanotubesCAPs
+using GeometryOptimizationCAPs
 using IntervalArithmetic
 using CairoMakie
 using JLD2
