@@ -3,7 +3,7 @@
 This repository contains the Julia codes associated with the paper: "Computer-Assisted Proofs for Geometry Optimization: 
 From Crystallization to Carbon Nanotubes" by M Ayala, R Choksi and B Wirth.
 
- [🔗 arXiv:2506.22614](https://arxiv.org/abs/2506.22614)   
+ [🔗 Paper](https://epubs.siam.org/eprint/SHVTEZZHG8BXHG2CEC9R/full)   
 
 ## Abstract
 We present a framework based on computer-assisted proofs that turns 
