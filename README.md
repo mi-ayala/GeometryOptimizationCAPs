@@ -6,7 +6,7 @@ From Crystallization to Carbon Nanotubes" by M Ayala, R Choksi and B Wirth.
  [🔗 Link to Journal](https://epubs.siam.org/doi/full/10.1137/25M1772824)
 
 
-[🔗 arXiv:2506.22614](https://arxiv.org/abs/2503.04701](https://arxiv.org/abs/2506.22614)  
+[🔗 arXiv:2506.22614](https://arxiv.org/abs/2503.04701)
 
 ## Abstract
 We present a framework based on computer-assisted proofs that turns 
